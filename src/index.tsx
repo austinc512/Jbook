@@ -1,9 +1,8 @@
 import * as esbuild from 'esbuild-wasm';
 import React, { useState, useEffect, useRef } from 'react';
-
 import ReactDOM from 'react-dom/client';
-
 import { unpkgPathPlugin } from './plugins/unpkg-path-plugin';
+import { fetchPlugin } from './plugins/fetch-plugin';
 
 const App = () => {
   const ref = useRef<any>();
@@ -29,18 +28,14 @@ const App = () => {
     if (!ref.current) {
       return;
     }
-    // else do thing
+
     console.log(ref.current);
 
-    // const result = await ref.current.transform(input, {
-    //   loader: 'jsx',
-    //   target: 'es2015',
-    // });
     const result = await ref.current.build({
       entryPoints: ['index.js'],
       bundle: true,
       write: false,
-      plugins: [unpkgPathPlugin()],
+      plugins: [unpkgPathPlugin(), fetchPlugin(input)],
       define: {
         'process.env.NODE_ENV': '"production"',
         global: 'window',
