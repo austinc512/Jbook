@@ -10,48 +10,63 @@ export const fetchPlugin = (inputCode: string) => {
   return {
     name: 'fetch-plugin',
     setup(build: esbuild.PluginBuild) {
+      // index route
+      build.onLoad({ filter: /^index\.js$/ }, (args: any) => {
+        console.log('onLoad', args);
+        return {
+          loader: 'jsx',
+          contents: inputCode,
+        };
+      });
+      // check cache
+      build.onLoad({ filter: /.*/ }, async (args: any) => {
+        const cachedResult = await fileCache.getItem<esbuild.OnLoadResult>(
+          args.path
+        );
+        if (cachedResult) {
+          return cachedResult;
+        }
+      });
+      // CSS files
+      build.onLoad({ filter: /.css$/ }, async (args: any) => {
+        console.log('onLoad', args);
+        console.log(args.path);
+        const { data, request } = await axios.get(args.path);
+
+        const escaped = data
+          .replace(/\n/g, '')
+          .replace(/"/g, '\\"')
+          .replace(/'/g, "\\'");
+        const contents = `
+          const style = document.createElement('style')
+          style.innerText = '${escaped}';
+          document.head.appendChild(style)    
+              `;
+        const result: esbuild.OnLoadResult = {
+          loader: 'jsx',
+          contents,
+          resolveDir: new URL('./', request.responseURL).pathname,
+        };
+
+        // store response in cache
+        await fileCache.setItem(args.path, result);
+        return result;
+      });
+      // JS files
       build.onLoad({ filter: /.*/, namespace: 'a' }, async (args: any) => {
         console.log('onLoad', args);
+        console.log(args.path);
+        const { data, request } = await axios.get(args.path);
 
-        if (args.path === 'index.js') {
-          return {
-            loader: 'jsx',
-            contents: inputCode,
-          };
-        } else {
-          // check to see if we've already fetched this file
-          // and if it's in the cache
-          const cachedResult = await fileCache.getItem<esbuild.OnLoadResult>(
-            args.path
-          );
-          // if so, return it immediately
-          if (cachedResult) {
-            return cachedResult;
-          }
-          // else request the package
-          console.log(args.path);
-          const { data, request } = await axios.get(args.path);
-          const fileType = args.path.match(/.css$/) ? 'css' : 'jsx';
+        const result: esbuild.OnLoadResult = {
+          loader: 'jsx',
+          contents: data,
+          resolveDir: new URL('./', request.responseURL).pathname,
+        };
 
-          const contents =
-            fileType === 'css'
-              ? `
-const style = document.createElement('style')
-style.innerText = 'body { background-color: "red" }';
-document.head.appendChild(style)         
-              `
-              : data;
-
-          const result: esbuild.OnLoadResult = {
-            loader: 'jsx',
-            contents,
-            resolveDir: new URL('./', request.responseURL).pathname,
-          };
-
-          // store response in cache
-          await fileCache.setItem(args.path, result);
-          return result;
-        }
+        // store response in cache
+        await fileCache.setItem(args.path, result);
+        return result;
       });
     },
   };
