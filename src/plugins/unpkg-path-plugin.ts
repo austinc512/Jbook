@@ -6,10 +6,12 @@ export const unpkgPathPlugin = () => {
     setup(build: esbuild.PluginBuild) {
       // handle root entry file of 'index.js'
       build.onResolve({ filter: /^index\.js$/ }, (args: any) => {
+        console.log('onResolve', args);
         return { path: args.path, namespace: 'a' };
       });
       // handle relative paths in a module
       build.onResolve({ filter: /^\.+\// }, (args: any) => {
+        console.log('onResolve', args);
         return {
           namespace: 'a',
           path: new URL(args.path, 'http://unpkg.com' + args.resolveDir + '/')
@@ -18,8 +20,9 @@ export const unpkgPathPlugin = () => {
       });
       // handle main file of a module
       // in case we have some trouble with some root module name, come back here
-      build.onResolve({ filter: /.*/ }, async (args: any) => {
-        // console.log('onResolve', args);
+      // also, the instructor still has this marked async, but I do not.
+      build.onResolve({ filter: /.*/ }, (args: any) => {
+        console.log('onResolve', args);
         return {
           namespace: 'a',
           path: `https://unpkg.com/${args.path}`,

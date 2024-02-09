@@ -31,21 +31,22 @@ export const fetchPlugin = (inputCode: string) => {
           // else request the package
           console.log(args.path);
           const { data, request } = await axios.get(args.path);
-          let result: esbuild.OnLoadResult;
-          if (args.path.match(/.css$/)) {
-            console.log(`MATCHED CSS`);
-            result = {
-              loader: 'css',
-              contents: data,
-              resolveDir: new URL('./', request.responseURL).pathname,
-            };
-          } else {
-            result = {
-              loader: 'jsx',
-              contents: data,
-              resolveDir: new URL('./', request.responseURL).pathname,
-            };
-          }
+          const fileType = args.path.match(/.css$/) ? 'css' : 'jsx';
+
+          const contents =
+            fileType === 'css'
+              ? `
+const style = document.createElement('style')
+style.innerText = 'body { background-color: "red" }';
+document.head.appendChild(style)         
+              `
+              : data;
+
+          const result: esbuild.OnLoadResult = {
+            loader: 'jsx',
+            contents,
+            resolveDir: new URL('./', request.responseURL).pathname,
+          };
 
           // store response in cache
           await fileCache.setItem(args.path, result);
